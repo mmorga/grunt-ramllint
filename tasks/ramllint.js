@@ -9,6 +9,30 @@
 'use strict';
 
 var Linter = require('ramllint');
+var path = require('path');
+var async = require('async');
+var colors = require('colors/safe');
+
+// set theme
+colors.setTheme({
+  silly: 'rainbow',
+  input: 'grey',
+  verbose: 'cyan',
+  prompt: 'grey',
+  info: 'green',
+  data: 'grey',
+  help: 'cyan',
+  warn: 'yellow',
+  debug: 'blue',
+  error: 'red'
+});
+
+var STATUS = {
+  'error': colors.error,
+  'info': colors.info,
+  'warning': colors.warn
+};
+
 
 module.exports = function (grunt) {
 
@@ -20,34 +44,52 @@ module.exports = function (grunt) {
     var options = this.options({
         level: 'info'
       }),
+      done = this.async(),
+      errResults = {
+        'error': 0,
+        'info': 0,
+        'warning': 0
+      },
+      srcs,
       ramllint = new Linter();
 
-    // Iterate over all specified file groups.
-    this.files.forEach(function (f) {
-      // Concat specified files.
-      var src = f.src.filter(function (filepath) {
-        // Warn on and remove invalid source files (if nonull was set).
-        if (!grunt.file.exists(filepath)) {
-          grunt.log.warn('Source file "' + filepath + '" not found.');
-          return false;
-        } else {
-          return true;
-        }
-      }).map(function (filepath) {
-        ramllint(filepath, function (results) {
-          // NOTE: results will only contain 'error' and will exclude 'warning' and 'info'
-          // to get an array of all log entries use: `ramllint.results()`
+    srcs = this.files.map(function (f) {
+      return f.src;
+    }).reduce(function (pv, cv) {
+      return pv.concat(cv);
+    }, []);
 
-          if (!results.length) {
-            grunt.log.ok('File "' + filepath + '" ok.');
-          } else {
-            // errors
-            results.forEach(function (err) {
-              grunt.log.error(err);
-            });
-          }
+    async.eachSeries(srcs, function (src, callback) {
+      ramllint.lint(path.resolve(src), function () {
+        var results = ramllint.results();
+        if (!results.length) {
+          grunt.log.ok('File "' + src + '" ok.');
+          return callback(null);
+        }
+
+        // errors
+        results.forEach(function entryFormat(entry) {
+
+          var output = STATUS[entry.level](entry.level.toUpperCase()) + ' ' +
+            entry.rule + '\n' +
+            '  ' + entry.message + colors.debug(' [' + entry.code + ']') +
+            (entry.hint ? colors.help('\nHINT:\n') + entry.hint : '');
+
+          grunt.log.writeln(output);
+          errResults[entry.level] += 1;
         });
+        callback(null);
       });
+    }, function () {
+      var msg = 'Errors: ' + errResults['error'] +
+        ', Warnings: ' + errResults['warning'] +
+        ', Info: ' + errResults['info'];
+      if (errResults['error'] + errResults['warning'] > 0) {
+        grunt.fatal(msg);
+      } else {
+        grunt.log.writeln(msg);
+      }
+      done();
     });
   });
 };

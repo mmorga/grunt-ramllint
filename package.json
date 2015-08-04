@@ -35,6 +35,8 @@
     "gruntplugin"
   ],
   "dependencies": {
+    "async": "^1.4.0",
+    "colors": "^1.1.2",
     "ramllint": "^1.2.2"
   }
 }
