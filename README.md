@@ -2,6 +2,8 @@
 
 > Grunt plugin for ramllint
 
+[![Build Status](https://travis-ci.org/mmorga/grunt-ramllint.svg?branch=master)](https://travis-ci.org/mmorga/grunt-ramllint)
+
 ## Getting Started
 This plugin requires Grunt `~0.4.5`
 
